@@ -101,8 +101,6 @@ async function testFetchChannel() {
             m.embeds[0].title &&
             m.embeds[0].title.includes("Grow a Garden")
         );
-        
-        const msg = messages.first();
 
         if (!msg) {
             console.log("❌ Нет сообщений");
