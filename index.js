@@ -38,6 +38,20 @@ async function testFetchChannel() {
         console.log("Текст:", msg.content);
         console.log("Embeds:", msg.embeds.length);
 
+        if (msg.embeds.length > 0) {
+        const embed = msg.embeds[0];
+
+        console.log("📦 EMBED TITLE:", embed.title);
+        console.log("📦 EMBED DESC:", embed.description);
+
+        if (embed.fields && embed.fields.length > 0) {
+            console.log("📦 FIELDS:");
+            for (const field of embed.fields) {
+            console.log(`➡️ ${field.name}: ${field.value}`);
+            }
+        }
+    }
+
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
     }
