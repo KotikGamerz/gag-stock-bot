@@ -45,6 +45,8 @@ async function testFetchChannel() {
 
 client.on('ready', () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
+
+    await testFetchChannel();
 });
 
 client.login(process.env.USER_TOKEN);
