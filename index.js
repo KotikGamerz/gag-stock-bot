@@ -9,4 +9,4 @@ client.on('ready', () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 });
 
-client.login(process.env.USER_TOKEN);
+client.login(process.env.VALUE);
