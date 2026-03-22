@@ -43,7 +43,7 @@ async function testFetchChannel() {
     }
 }
 
-client.on('ready', () => {
+client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
     await testFetchChannel();
