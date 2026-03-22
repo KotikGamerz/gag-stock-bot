@@ -16,6 +16,33 @@ app.listen(port, () => {
 
 const client = new Client();
 
+async function testFetchChannel() {
+    try {
+        const channel = client.channels.cache.get(process.env.SOURCE_CHANNEL_ID);
+
+        if (!channel) {
+            console.log("❌ Канал не найден");
+            return;
+        }
+
+        const messages = await channel.messages.fetch({ limit: 1 });
+        const msg = messages.first();
+
+        if (!msg) {
+            console.log("❌ Нет сообщений");
+            return;
+        }
+
+        console.log("📩 Сообщение найдено:");
+        console.log("Автор:", msg.author?.tag);
+        console.log("Текст:", msg.content);
+        console.log("Embeds:", msg.embeds.length);
+
+    } catch (err) {
+        console.error("❌ Ошибка:", err.message);
+    }
+}
+
 client.on('ready', () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 });
