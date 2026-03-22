@@ -95,6 +95,8 @@ async function testFetchChannel() {
             return;
         }
 
+        const messages = await channel.messages.fetch({ limit: 5 });
+
         const msg = messages.find(m => 
             m.embeds && 
             m.embeds.length > 0 &&
@@ -104,12 +106,6 @@ async function testFetchChannel() {
 
         if (!msg) {
             console.log("❌ Нет сообщений");
-            return;
-        }
-
-        // ❌ фильтр рекламы
-        if (!msg.embeds || msg.embeds.length === 0) {
-            console.log("🚫 Это не сток (реклама)");
             return;
         }
 
