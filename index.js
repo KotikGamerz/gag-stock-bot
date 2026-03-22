@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
+const axios = require('axios');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -20,6 +21,8 @@ let lastStock = null;
 
 async function testFetchChannel() {
     try {
+        console.log("🔄 Проверка стока...");
+
         const channel = client.channels.cache.get(process.env.SOURCE_CHANNEL_ID);
 
         if (!channel) {
@@ -35,25 +38,27 @@ async function testFetchChannel() {
             return;
         }
 
+        // ❌ фильтр рекламы
         if (!msg.embeds || msg.embeds.length === 0) {
-            console.log("🚫 Это не сток (нет embed, скорее реклама)");
+            console.log("🚫 Это не сток (реклама)");
             return;
         }
 
-        console.log("📩 Сообщение найдено:");
-        console.log("Автор:", msg.author?.tag);
-        console.log("Текст:", msg.content);
-        console.log("Embeds:", msg.embeds.length);
+        const embedMsg = msg.embeds[0];
 
-        const embed = msg.embeds[0];
+        // ❌ защита от мусора
+        if (!embedMsg.title || !embedMsg.title.toLowerCase().includes('stock')) {
+            console.log("🚫 Это не сток embed");
+            return;
+        }
 
-        console.log("📦 EMBED TITLE:", embed.title);
+        console.log("📦 EMBED:", embedMsg.title);
 
         let seeds = [];
         let gear = [];
 
-        if (embed.fields && embed.fields.length > 0) {
-            for (const field of embed.fields) {
+        if (embedMsg.fields && embedMsg.fields.length > 0) {
+            for (const field of embedMsg.fields) {
 
                 const fieldName = field.name.toLowerCase();
                 const lines = field.value.split('\n');
@@ -61,21 +66,17 @@ async function testFetchChannel() {
                 for (const line of lines) {
 
                     const cleaned = line
-                        .replace(/<:[^>]+>/g, '')   // убираем эмодзи
-                        .replace(/\*\*/g, '')       // убираем **
+                        .replace(/<:[^>]+>/g, '')   // убрать эмодзи
+                        .replace(/\*\*/g, '')       // убрать **
                         .trim();
 
                     const match = cleaned.match(/x(\d+)\s+(.+)/i);
-
                     if (!match) continue;
 
                     const count = parseInt(match[1]);
                     const itemName = match[2].trim();
 
-                    const item = {
-                        name: itemName,
-                        count: count
-                    };
+                    const item = { name: itemName, count };
 
                     if (fieldName.includes('seed')) {
                         seeds.push(item);
@@ -86,9 +87,10 @@ async function testFetchChannel() {
             }
         }
 
-        console.log("🌾 SEEDS PARSED:", seeds);
-        console.log("⚙️ GEAR PARSED:", gear);
+        console.log("🌾 SEEDS:", seeds);
+        console.log("⚙️ GEAR:", gear);
 
+        // 🧠 сравнение
         const currentStock = JSON.stringify({ seeds, gear });
 
         if (currentStock === lastStock) {
@@ -96,9 +98,56 @@ async function testFetchChannel() {
             return;
         }
 
-lastStock = currentStock;
+        lastStock = currentStock;
 
-console.log("🚀 Новый сток найден!");
+        console.log("🚀 Новый сток!");
+
+        // =========================
+        // ✨ СОЗДАЁМ EMBED
+        // =========================
+
+        const embed = {
+            title: "🌱 GROW A GARDEN | STOCK",
+            color: 0x00ff00,
+            fields: [],
+            footer: {
+                text: `Last update: ${new Date().toUTCString()}`
+            }
+        };
+
+        if (seeds.length > 0) {
+            const seedText = seeds
+                .map(i => `- ${i.name} — ${i.count}`)
+                .join('\n');
+
+            embed.fields.push({
+                name: "🌾 SEEDS",
+                value: seedText,
+                inline: false
+            });
+        }
+
+        if (gear.length > 0) {
+            const gearText = gear
+                .map(i => `- ${i.name} — ${i.count}`)
+                .join('\n');
+
+            embed.fields.push({
+                name: "⚙️ GEAR",
+                value: gearText,
+                inline: false
+            });
+        }
+
+        // =========================
+        // 📤 ОТПРАВКА В DISCORD
+        // =========================
+
+        await axios.post(process.env.WEBHOOK_URL, {
+            embeds: [embed]
+        });
+
+        console.log("📨 Отправлено!");
 
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
@@ -107,7 +156,10 @@ console.log("🚀 Новый сток найден!");
 
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
-    setInterval(testFetchChannel, 30 * 1000);
+
+    await testFetchChannel(); // сразу
+
+    setInterval(testFetchChannel, 30 * 1000); // каждые 30 сек
 });
 
 client.login(process.env.USER_TOKEN);
