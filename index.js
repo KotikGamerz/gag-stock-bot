@@ -17,6 +17,70 @@ app.listen(port, () => {
 
 const client = new Client();
 
+const EMOJIS = {
+    // 🌾 SEEDS
+    "Carrot": "🥕",
+    "Strawberry": "🍓",
+    "Blueberry": "🫐",
+    "Buttercup": "🌼",
+    "Tomato": "🍅",
+    "Corn": "🌽",
+    "Daffodil": "🌼",
+    "Watermelon": "🍉",
+    "Pumpkin": "🎃",
+    "Apple": "🍎",
+    "Bamboo": "🎋",
+    "Dragon Fruit": "🐉",
+    "Mango": "🥭",
+    "Grape": "🍇",
+    "Mushroom": "🍄",
+    "Pepper": "🌶️",
+    "Cacao": "🍫",
+    "Sunflower": "🌻",
+    "Beanstalk": "🌱",
+    "Ember Lily": "🔥",
+    "Sugar Apple": "🍏",
+    "Burning Bud": "🔥",
+    "Giant Pipecone": "🌲",
+    "Elder Strawberry": "🍓",
+    "Romanesco": "🥦",
+    "Crimson Thorn": "🌹",
+    "Zebrazinkle": "🌀",
+    "Octobloom": "🌸",
+    "Alien Apple": "🛸",
+
+    // ⚙️ GEAR
+    "Watering Can": "💧",
+    "Basic Sprinkler": "🚿",
+    "Advanced Sprinkler": "🚿",
+    "Godly Sprinkler": "✨",
+    "Master Sprinkler": "💎",
+    "Grandmaster Sprinkler": "👑",
+    "Trowel": "🪴",
+    "Recall Wrench": "🔩",
+    "Medium Toy": "🧸",
+    "Pet Name Reroller": "🎲",
+    "Pet Lead": "🪢",
+    "Medium Treat": "🍖",
+    "Magnifying Glass": "🔍",
+    "Cleaning Spray": "🧴",
+    "Cleansing Pet Shard": "💠",
+    "Favorite Tool": "⭐",
+    "Harvest Tool": "🔧",
+    "Friendship Pot": "🪴",
+    "Levelup Lollipop": "🍭",
+    "Trading Ticket": "🎟️",
+
+    // 🥚 EGGS
+    "Common Egg": "🥚",
+    "Uncommon Egg": "🥚",
+    "Rare Egg": "🥚",
+    "Legendary Egg": "🥚",
+    "Mythical Egg": "🥚",
+    "Bug Egg": "🐛",
+    "Jungle Egg": "🌿"
+};
+
 let lastStock = null;
 
 async function testFetchChannel() {
@@ -117,7 +181,7 @@ async function testFetchChannel() {
 
         if (seeds.length > 0) {
             const seedText = seeds
-                .map(i => `- ${i.name} — ${i.count}`)
+                .map(i => `- ${i.name} ${EMOJIS[i.name] || ""} — ${i.count}`)
                 .join('\n');
 
             embed.fields.push({
@@ -129,7 +193,7 @@ async function testFetchChannel() {
 
         if (gear.length > 0) {
             const gearText = gear
-                .map(i => `- ${i.name} — ${i.count}`)
+                .map(i => `- ${i.name} ${EMOJIS[i.name] || ""} — ${i.count}`)
                 .join('\n');
 
             embed.fields.push({
