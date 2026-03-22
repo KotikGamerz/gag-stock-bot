@@ -16,6 +16,8 @@ app.listen(port, () => {
 
 const client = new Client();
 
+let lastStock = null;
+
 async function testFetchChannel() {
     try {
         const channel = client.channels.cache.get(process.env.SOURCE_CHANNEL_ID);
@@ -42,8 +44,6 @@ async function testFetchChannel() {
         console.log("Автор:", msg.author?.tag);
         console.log("Текст:", msg.content);
         console.log("Embeds:", msg.embeds.length);
-
-        if (!msg.embeds || msg.embeds.length === 0) return;
 
         const embed = msg.embeds[0];
 
@@ -89,6 +89,17 @@ async function testFetchChannel() {
         console.log("🌾 SEEDS PARSED:", seeds);
         console.log("⚙️ GEAR PARSED:", gear);
 
+        const currentStock = JSON.stringify({ seeds, gear });
+
+        if (currentStock === lastStock) {
+            console.log("⏸️ Сток не изменился");
+            return;
+        }
+
+lastStock = currentStock;
+
+console.log("🚀 Новый сток найден!");
+
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
     }
@@ -96,7 +107,7 @@ async function testFetchChannel() {
 
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
-    await testFetchChannel();
+    setInterval(testFetchChannel, 30 * 1000);
 });
 
 client.login(process.env.USER_TOKEN);
