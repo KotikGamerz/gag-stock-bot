@@ -1,0 +1,13 @@
+{
+  "name": "grow-a-garden-stock-bot",
+  "version": "1.0.0",
+  "description": "Stock parser for Grow a Garden",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "^3.1.4",
+    "dotenv": "^16.4.5"
+  }
+}
