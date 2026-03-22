@@ -33,6 +33,11 @@ async function testFetchChannel() {
             return;
         }
 
+        if (!msg.embeds || msg.embeds.length === 0) {
+            console.log("🚫 Это не сток (нет embed, скорее реклама)");
+            return;
+        }
+
         console.log("📩 Сообщение найдено:");
         console.log("Автор:", msg.author?.tag);
         console.log("Текст:", msg.content);
@@ -43,7 +48,6 @@ async function testFetchChannel() {
         const embed = msg.embeds[0];
 
         console.log("📦 EMBED TITLE:", embed.title);
-        console.log("📦 EMBED DESC:", embed.description);
 
         let seeds = [];
         let gear = [];
@@ -56,7 +60,10 @@ async function testFetchChannel() {
 
                 for (const line of lines) {
 
-                    const cleaned = line.replace(/<:[^>]+>/g, '').trim();
+                    const cleaned = line
+                        .replace(/<:[^>]+>/g, '')   // убираем эмодзи
+                        .replace(/\*\*/g, '')       // убираем **
+                        .trim();
 
                     const match = cleaned.match(/x(\d+)\s+(.+)/i);
 
