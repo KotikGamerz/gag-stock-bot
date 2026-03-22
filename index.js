@@ -82,6 +82,7 @@ const EMOJIS = {
 };
 
 let lastStock = null;
+let lastEggs = null;
 
 async function testFetchChannel() {
     try {
@@ -120,6 +121,7 @@ async function testFetchChannel() {
 
         let seeds = [];
         let gear = [];
+        let eggs = [];
 
         if (embedMsg.fields && embedMsg.fields.length > 0) {
             for (const field of embedMsg.fields) {
@@ -146,6 +148,8 @@ async function testFetchChannel() {
                         seeds.push(item);
                     } else if (fieldName.includes('gear')) {
                         gear.push(item);
+                    } else if (fieldName.includes('eggs')) {
+                        eggs.push(item);
                     }
                 }
             }
@@ -155,7 +159,7 @@ async function testFetchChannel() {
         console.log("⚙️ GEAR:", gear);
 
         // 🧠 сравнение
-        const currentStock = JSON.stringify({ seeds, gear });
+        const currentStock = JSON.stringify({ seeds, gear, eggs });
 
         if (currentStock === lastStock) {
             console.log("⏸️ Сток не изменился");
@@ -165,6 +169,16 @@ async function testFetchChannel() {
         lastStock = currentStock;
 
         console.log("🚀 Новый сток!");
+
+        const currentEggs = JSON.stringify(eggs);
+
+        let showEggs = true;
+
+        if (currentEggs === lastEggs) {
+            showEggs = false;
+        }
+
+        lastEggs = currentEggs;
 
         // =========================
         // ✨ СОЗДАЁМ EMBED
@@ -199,6 +213,18 @@ async function testFetchChannel() {
             embed.fields.push({
                 name: "⚙️ GEAR",
                 value: gearText,
+                inline: false
+            });
+        }
+
+        if (eggs.length > 0 && showEggs) {
+            const eggsText = eggs
+                .map(i => `- ${i.name} ${EMOJIS[i.name] || ""} — ${i.count}`)
+                .join('\n');
+
+            embed.fields.push({
+                name: "🥚 EGGS",
+                value: eggsText,
                 inline: false
             });
         }
