@@ -3,6 +3,8 @@ require('dotenv').config();
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
 const axios = require('axios');
+const now = new Date();
+const unix = Math.floor(now.getTime() / 1000);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -252,8 +254,9 @@ async function testFetchChannel() {
             color: 0x00ff00,
             fields: [],
             footer: {
-                text: `Last update: ${new Date().toUTCString()}`
+                text: `Last update: ${now.toLocaleTimeString('en-GB')} UTC • <t:${unix}:f>`
             }
+            timestamp: now.toISOString()
         };
 
         if (seeds.length > 0) {
