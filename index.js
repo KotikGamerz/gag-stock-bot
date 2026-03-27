@@ -83,8 +83,69 @@ const EMOJIS = {
     "Jungle Egg": "🌿"
 };
 
+const RARE_ITEMS = {
+    seeds: [
+        "Burning Bud",
+        "Giant Pipecone",
+        "Elder Strawberry",
+        "Romanesco",
+        "Crimson Thorn",
+        "Zebrazinkle",
+        "Octobloom",
+        "Alien Apple"
+    ],
+    gear: [
+        "Levelup Lollipop",
+        "Master Sprinkler",
+        "Grandmaster Sprinkler"
+    ],
+    eggs: [
+        "Bug Egg",
+        "Jungle Egg"
+    ]
+};
+
+const ROLE_IDS = {
+    // 🌾 SEEDS
+    "Burning Bud": "1486395632796303541",
+    "Giant Pipecone": "1486395629310705815",
+    "Elder Strawberry": "1486395626202730506",
+    "Romanesco": "1486395622780043458",
+    "Crimson Thorn": "1486395619634581585",
+    "Zebrazinkle": "1486395616505630950",
+    "Octobloom": "1486395613200257156",
+    "Alien Apple": "1486395609752535120",
+
+    // ⚙️ GEAR
+    "Levelup Lollipop": "1486395644821110987",
+    "Master Sprinkler": "1486395640786321618",
+    "Grandmaster Sprinkler": "1486395636667388025",
+
+    // 🥚 EGGS
+    "Bug Egg": "1486395651368554536",
+    "Jungle Egg": "1486395647765643447"
+};
+
 let lastStock = null;
 let lastEggs = null;
+
+function getPingText(seeds, gear, eggs) {
+    let pings = [];
+
+    const check = (items, rareList) => {
+        for (const i of items) {
+            if (rareList.includes(i.name) && ROLE_IDS[i.name]) {
+                pings.push(`<@&${ROLE_IDS[i.name]}>`);
+            }
+        }
+    };
+
+    check(seeds, RARE_ITEMS.seeds);
+    check(gear, RARE_ITEMS.gear);
+    check(eggs, RARE_ITEMS.eggs);
+
+    return pings.join(' ');
+}
 
 async function testFetchChannel() {
     try {
@@ -235,7 +296,10 @@ async function testFetchChannel() {
         // 📤 ОТПРАВКА В DISCORD
         // =========================
 
+        const pingText = getPingText(seeds, gear, eggs);
+
         await axios.post(process.env.WEBHOOK_URL, {
+            content: pingText || null,
             embeds: [embed]
         });
 
