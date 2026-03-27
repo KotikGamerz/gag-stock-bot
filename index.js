@@ -197,7 +197,7 @@ async function testFetchChannel() {
 
         if (seeds.length > 0) {
             const seedText = seeds
-                .map(i => `- ${i.name} ${EMOJIS[i.name] || ""} — ${i.count}`)
+                .map(i => `${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
                 .join('\n');
 
             embed.fields.push({
@@ -209,7 +209,7 @@ async function testFetchChannel() {
 
         if (gear.length > 0) {
             const gearText = gear
-                .map(i => `- ${i.name} ${EMOJIS[i.name] || ""} — ${i.count}`)
+                .map(i => `${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
                 .join('\n');
 
             embed.fields.push({
@@ -221,7 +221,7 @@ async function testFetchChannel() {
 
         if (eggs.length > 0 && showEggs) {
             const eggsText = eggs
-                .map(i => `- ${i.name} ${EMOJIS[i.name] || ""} — ${i.count}`)
+                .map(i => `${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
                 .join('\n');
 
             embed.fields.push({
