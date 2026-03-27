@@ -255,7 +255,7 @@ async function testFetchChannel() {
             fields: [],
             footer: {
                 text: `Last update: ${now.toLocaleTimeString('en-GB')} UTC • <t:${unix}:f>`
-            }
+            },
             timestamp: now.toISOString()
         };
 
