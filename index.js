@@ -30,6 +30,8 @@ const EMOJIS = {
     "Pumpkin": "🎃",
     "Apple": "🍎",
     "Bamboo": "🎋",
+    "Coconut": "🥥",
+    "Cactus": "🌵",
     "Dragon Fruit": "🐉",
     "Mango": "🥭",
     "Grape": "🍇",
