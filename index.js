@@ -322,7 +322,7 @@ client.on('ready', async () => {
 
     await testFetchChannel(); // сразу
 
-    setInterval(testFetchChannel, 30 * 1000); // каждые 30 сек
+    setInterval(testFetchChannel, 15 * 1000); // каждые 15 сек
 });
 
 client.login(process.env.USER_TOKEN);
