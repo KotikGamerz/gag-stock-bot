@@ -170,7 +170,24 @@ async function testFetchChannel() {
         }
 
         console.log("B: перед fetch сообщений");
-        const messages = await channel.messages.fetch({ limit: 5 });
+        const fetchWithTimeout = async (promise, ms) => {
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Fetch timeout")), ms)
+            );
+            return Promise.race([promise, timeout]);
+        };
+
+        let messages;
+
+        try {
+            messages = await fetchWithTimeout(
+                channel.messages.fetch({ limit: 5 }),
+                10000 // 10 секунд
+            );
+        } catch (err) {
+            console.log("❌ Fetch завис или ошибка:", err.message);
+            return;
+        }
         console.log("C: после fetch сообщений");
 
         const msg = messages.find(m => 
