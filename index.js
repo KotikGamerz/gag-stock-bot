@@ -131,6 +131,7 @@ const ROLE_IDS = {
 
 let lastStock = null;
 let lastEggs = null;
+let isChecking = false;
 
 function getPingText(seeds, gear, eggs) {
     let pings = [];
@@ -149,19 +150,28 @@ function getPingText(seeds, gear, eggs) {
 
     return pings.join(' ');
 }
-
 async function testFetchChannel() {
+    if (isChecking) {
+        console.log("⏳ Предыдущая проверка ещё идёт");
+        return;
+    }
+
+    isChecking = true;
+
     try {
         console.log("🔄 Проверка стока...");
 
         const channel = client.channels.cache.get(process.env.SOURCE_CHANNEL_ID);
+        console.log("A: после get channel");
 
         if (!channel) {
             console.log("❌ Канал не найден");
             return;
         }
 
+        console.log("B: перед fetch сообщений");
         const messages = await channel.messages.fetch({ limit: 5 });
+        console.log("C: после fetch сообщений");
 
         const msg = messages.find(m => 
             m.embeds && 
@@ -171,7 +181,7 @@ async function testFetchChannel() {
         );
 
         if (!msg) {
-            console.log("❌ Нет сообщений");
+            console.log("⚠️ Embed со стоком не найден");
             return;
         }
 
@@ -311,17 +321,21 @@ async function testFetchChannel() {
         });
 
         console.log("📨 Отправлено!");
-
+        
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
+    } finally {
+        isChecking = false;
     }
 }
 
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
-    await testFetchChannel();
-    setInterval(testFetchChannel, 30 * 1000);
+    while (true) {
+        await testFetchChannel();
+        await new Promise(resolve => setTimeout(resolve, 30 * 1000));
+    }
 });
 
 client.on('error', (err) => {
