@@ -332,10 +332,11 @@ async function testFetchChannel() {
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
-    while (true) {
-        await testFetchChannel();
-        await new Promise(resolve => setTimeout(resolve, 30 * 1000));
-    }
+    // первый запуск
+    await testFetchChannel();
+
+    // дальше по таймеру
+    setInterval(testFetchChannel, 30 * 1000);
 });
 
 client.on('error', (err) => {
