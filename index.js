@@ -320,9 +320,30 @@ async function testFetchChannel() {
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
-    await testFetchChannel(); // сразу
-
-    setInterval(testFetchChannel, 15 * 1000); // каждые 15 сек
+    await testFetchChannel();
+    setInterval(testFetchChannel, 15 * 1000);
 });
+
+client.on('error', (err) => {
+    console.error("❌ CLIENT ERROR:", err);
+});
+
+client.on('debug', (msg) => {
+    console.log("🛠 DEBUG:", msg);
+});
+
+client.on('disconnect', () => {
+    console.log("🔌 DISCONNECTED");
+});
+
+client.on('rateLimit', (info) => {
+    console.log("⏳ RATE LIMIT:", info);
+});
+
+console.log("🔑 TOKEN:", process.env.USER_TOKEN ? "есть" : "нет");
+
+client.login(process.env.USER_TOKEN)
+    .then(() => console.log("📲 login() вызван успешно"))
+    .catch(err => console.error("❌ LOGIN ERROR:", err));
 
 client.login(process.env.USER_TOKEN);
