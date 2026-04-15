@@ -131,7 +131,6 @@ const ROLE_IDS = {
 
 let lastStock = null;
 let lastEggs = null;
-let isChecking = false;
 
 function getPingText(seeds, gear, eggs) {
     let pings = [];
@@ -152,13 +151,6 @@ function getPingText(seeds, gear, eggs) {
 }
 
 async function testFetchChannel() {
-    if (isChecking) {
-        console.log("⏳ Прошлая проверка ещё не завершилась");
-        return;
-    }
-
-    isChecking = true;
-
     try {
         console.log("🔄 Проверка стока...");
 
@@ -169,31 +161,29 @@ async function testFetchChannel() {
             return;
         }
 
-        console.log("1️⃣ Канал найден");
-
         const messages = await channel.messages.fetch({ limit: 5 });
-        console.log("2️⃣ Сообщения получены");
 
-        const msg = messages.find(m =>
-            m.embeds &&
+        const msg = messages.find(m => 
+            m.embeds && 
             m.embeds.length > 0 &&
             m.embeds[0].title &&
-            m.embeds[0].title.toLowerCase().includes("grow a garden")
+            m.embeds[0].title.includes("Grow a Garden")
         );
 
         if (!msg) {
-            console.log("❌ Подходящий embed не найден");
+            console.log("❌ Нет сообщений");
             return;
         }
 
         const embedMsg = msg.embeds[0];
 
-        if (!embedMsg.title || !embedMsg.title.toLowerCase().includes("stock")) {
-            console.log("🚫 Найден embed, но это не stock");
+        // ❌ защита от мусора
+        if (!embedMsg.title || !embedMsg.title.toLowerCase().includes('stock')) {
+            console.log("🚫 Это не сток embed");
             return;
         }
 
-        console.log(`📦 EMBED: ${embedMsg.title}`);
+        console.log("📦 EMBED:", embedMsg.title);
 
         let seeds = [];
         let gear = [];
@@ -201,49 +191,40 @@ async function testFetchChannel() {
 
         if (embedMsg.fields && embedMsg.fields.length > 0) {
             for (const field of embedMsg.fields) {
+
                 const fieldName = field.name.toLowerCase();
-                const lines = field.value.split("\n");
+                const lines = field.value.split('\n');
 
                 for (const line of lines) {
+
                     const cleaned = line
-                        .replace(/<:[^>]+>/g, "")
-                        .replace(/\*\*/g, "")
+                        .replace(/<:[^>]+>/g, '')   // убрать эмодзи
+                        .replace(/\*\*/g, '')       // убрать **
                         .trim();
 
                     const match = cleaned.match(/x(\d+)\s+(.+)/i);
                     if (!match) continue;
 
-                    const count = parseInt(match[1], 10);
+                    const count = parseInt(match[1]);
                     const itemName = match[2].trim();
 
                     const item = { name: itemName, count };
 
-                    if (fieldName.includes("seed")) {
+                    if (fieldName.includes('seed')) {
                         seeds.push(item);
-                    } else if (fieldName.includes("gear")) {
+                    } else if (fieldName.includes('gear')) {
                         gear.push(item);
-                    } else if (fieldName.includes("egg")) {
+                    } else if (fieldName.includes('eggs')) {
                         eggs.push(item);
                     }
                 }
             }
         }
 
-        const sortItems = (arr) =>
-            arr.sort((a, b) => {
-                const nameCompare = a.name.localeCompare(b.name);
-                if (nameCompare !== 0) return nameCompare;
-                return a.count - b.count;
-            });
-
-        sortItems(seeds);
-        sortItems(gear);
-        sortItems(eggs);
-
         console.log("🌾 SEEDS:", seeds);
         console.log("⚙️ GEAR:", gear);
-        console.log("🥚 EGGS:", eggs);
 
+        // 🧠 сравнение
         const currentStock = JSON.stringify({ seeds, gear, eggs });
 
         if (currentStock === lastStock) {
@@ -252,20 +233,32 @@ async function testFetchChannel() {
         }
 
         lastStock = currentStock;
+
         console.log("🚀 Новый сток!");
 
         const currentEggs = JSON.stringify(eggs);
-        const showEggs = currentEggs !== lastEggs;
+
+        let showEggs = true;
+
+        if (currentEggs === lastEggs) {
+            showEggs = false;
+        }
+
         lastEggs = currentEggs;
 
-        const now = new Date();
+        // =========================
+        // ✨ СОЗДАЁМ EMBED
+        // =========================
 
+        const now = new Date();
+        const unix = Math.floor(now.getTime() / 1000);
+        
         const embed = {
             title: "🌱 GROW A GARDEN | STOCK",
             color: 0x00ff00,
             fields: [],
             footer: {
-                text: `Last update: ${now.toLocaleTimeString("en-GB")} UTC`
+                text: `Last update: ${now.toLocaleTimeString('en-GB')} UTC`
             },
             timestamp: now.toISOString()
         };
@@ -273,7 +266,7 @@ async function testFetchChannel() {
         if (seeds.length > 0) {
             const seedText = seeds
                 .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                .join("\n");
+                .join('\n');
 
             embed.fields.push({
                 name: "🌾 SEEDS",
@@ -285,7 +278,7 @@ async function testFetchChannel() {
         if (gear.length > 0) {
             const gearText = gear
                 .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                .join("\n");
+                .join('\n');
 
             embed.fields.push({
                 name: "⚙️ GEAR",
@@ -297,7 +290,7 @@ async function testFetchChannel() {
         if (eggs.length > 0 && showEggs) {
             const eggsText = eggs
                 .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                .join("\n");
+                .join('\n');
 
             embed.fields.push({
                 name: "🥚 EGGS",
@@ -306,28 +299,21 @@ async function testFetchChannel() {
             });
         }
 
+        // =========================
+        // 📤 ОТПРАВКА В DISCORD
+        // =========================
+
         const pingText = getPingText(seeds, gear, eggs);
 
-        await axios.post(
-            process.env.WEBHOOK_URL,
-            {
-                content: pingText || null,
-                embeds: [embed]
-            },
-            {
-                timeout: 10000
-            }
-        );
+        await axios.post(process.env.WEBHOOK_URL, {
+            content: pingText || null,
+            embeds: [embed]
+        });
 
         console.log("📨 Отправлено!");
+
     } catch (err) {
-        if (err.response) {
-            console.error("❌ Ошибка webhook:", err.response.status, err.response.data);
-        } else {
-            console.error("❌ Ошибка:", err.message);
-        }
-    } finally {
-        isChecking = false;
+        console.error("❌ Ошибка:", err.message);
     }
 }
 
@@ -335,7 +321,7 @@ client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
     await testFetchChannel();
-    setInterval(testFetchChannel, 15 * 1000);
+    setInterval(testFetchChannel, 30 * 1000);
 });
 
 client.on('error', (err) => {
