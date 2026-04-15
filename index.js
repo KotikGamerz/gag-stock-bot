@@ -328,10 +328,6 @@ client.on('error', (err) => {
     console.error("❌ CLIENT ERROR:", err);
 });
 
-client.on('debug', (msg) => {
-    console.log("🛠 DEBUG:", msg);
-});
-
 client.on('disconnect', () => {
     console.log("🔌 DISCONNECTED");
 });
@@ -345,5 +341,3 @@ console.log("🔑 TOKEN:", process.env.USER_TOKEN ? "есть" : "нет");
 client.login(process.env.USER_TOKEN)
     .then(() => console.log("📲 login() вызван успешно"))
     .catch(err => console.error("❌ LOGIN ERROR:", err));
-
-client.login(process.env.USER_TOKEN);
