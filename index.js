@@ -50,7 +50,7 @@ const EMOJIS = {
     "Zebrazinkle": "🌀",
     "Octobloom": "🌸",
     "Alien Apple": "🛸",
-    "Eggsnaper": "🐣",
+    "Eggsnapper": "🐣",
 
     // ⚙️ GEAR
     "Watering Can": "💧",
@@ -94,7 +94,7 @@ const RARE_ITEMS = {
         "Zebrazinkle",
         "Octobloom",
         "Alien Apple",
-        "Eggsnaper"
+        "Eggsnapper"
     ],
     gear: [
         "Levelup Lollipop",
@@ -117,7 +117,7 @@ const ROLE_IDS = {
     "Zebrazinkle": "1486395616505630950",
     "Octobloom": "1486395613200257156",
     "Alien Apple": "1486395609752535120",
-    "Eggsnaper": "1490567124777959544",
+    "Eggsnapper": "1490567124777959544",
 
     // ⚙️ GEAR
     "Levelup Lollipop": "1486395644821110987",
