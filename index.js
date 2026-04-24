@@ -133,6 +133,10 @@ let lastStock = null;
 let lastEggs = null;
 let isChecking = false;
 
+let latestSeeds = null;
+let latestGear = null;
+let latestEggs = null;
+
 function getPingText(seeds, gear, eggs) {
     let pings = [];
 
@@ -150,195 +154,152 @@ function getPingText(seeds, gear, eggs) {
 
     return pings.join(' ');
 }
-async function testFetchChannel() {
-    if (isChecking) {
-        console.log("⏳ Предыдущая проверка ещё идёт");
+
+function parseStockText(text) {
+    const items = [];
+    const lines = text.split('\n');
+
+    for (const line of lines) {
+        const cleaned = line
+            .replace(/<:[^>]+>/g, '')
+            .replace(/[•]/g, '')
+            .replace(/[^\p{L}\p{N}\sx]/gu, '')
+            .trim();
+
+        const match = cleaned.match(/^(.+?)\s*x(\d+)$/i);
+        if (!match) continue;
+
+        items.push({
+            name: match[1].trim(),
+            count: parseInt(match[2])
+        });
+    }
+
+    return items;
+}
+
+async function fetchStock(channelId, keyword) {
+    const channel = client.channels.cache.get(channelId);
+
+    if (!channel) {
+        console.log(`❌ Канал не найден: ${channelId}`);
+        return null;
+    }
+
+    const messages = await channel.messages.fetch({ limit: 5 });
+
+    const msg = messages.find(m =>
+        m.embeds?.length > 0 &&
+        m.embeds[0].title?.toLowerCase().includes(keyword)
+    );
+
+    if (!msg) {
+        console.log(`⚠️ Embed не найден: ${keyword}`);
+        return null;
+    }
+
+    const embed = msg.embeds[0];
+
+    const text =
+        embed.description ||
+        embed.fields?.map(f => f.value).join('\n') ||
+        '';
+
+    return parseStockText(text);
+}
+
+async function sendStockEmbed(seeds, gear, eggs) {
+
+    const currentStock = JSON.stringify({ seeds, gear, eggs });
+
+    if (currentStock === lastStock) {
+        console.log("⏸️ Сток не изменился");
         return;
     }
 
+    lastStock = currentStock;
+
+    console.log("🚀 Новый сток!");
+
+    const currentEggs = JSON.stringify(eggs);
+
+    let showEggs = true;
+
+    if (currentEggs === lastEggs) {
+        showEggs = false;
+    }
+
+    lastEggs = currentEggs;
+
+    const now = new Date();
+
+    const embed = {
+        title: "🌱 GROW A GARDEN | STOCK",
+        color: 0x00ff00,
+        fields: [],
+        footer: {
+            text: `Last update: ${now.toLocaleTimeString('en-GB')} UTC`
+        },
+        timestamp: now.toISOString()
+    };
+
+    if (seeds.length > 0) {
+        embed.fields.push({
+            name: "🌾 SEEDS",
+            value: seeds.map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`).join('\n'),
+            inline: false
+        });
+    }
+
+    if (gear.length > 0) {
+        embed.fields.push({
+            name: "⚙️ GEAR",
+            value: gear.map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`).join('\n'),
+            inline: false
+        });
+    }
+
+    if (eggs.length > 0 && showEggs) {
+        embed.fields.push({
+            name: "🥚 EGGS",
+            value: eggs.map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`).join('\n'),
+            inline: false
+        });
+    }
+
+    const pingText = getPingText(seeds, gear, eggs);
+
+    await axios.post(process.env.WEBHOOK_URL, {
+        content: pingText || null,
+        embeds: [embed]
+    });
+
+    console.log("📨 Отправлено!");
+}
+
+async function checkAllStocks() {
+
+    if (isChecking) return;
     isChecking = true;
 
     try {
-        console.log("🔄 Проверка стока...");
+        console.log("🔄 Проверка нового источника...");
 
-        const channel = client.channels.cache.get(process.env.SOURCE_CHANNEL_ID);
-        console.log("A: после get channel");
+        const seeds = await fetchStock(process.env.SEEDS_CHANNEL_ID, 'seed');
+        const gear = await fetchStock(process.env.GEAR_CHANNEL_ID, 'gear');
+        const eggs = await fetchStock(process.env.EGGS_CHANNEL_ID, 'egg');
 
-        if (!channel) {
-            console.log("❌ Канал не найден");
+        if (!seeds || !gear) {
+            console.log("⏳ Нет seeds или gear");
             return;
         }
 
-        console.log("B: перед fetch сообщений");
-        const fetchWithTimeout = async (promise, ms) => {
-            const timeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Fetch timeout")), ms)
-            );
-            return Promise.race([promise, timeout]);
-        };
+        latestSeeds = seeds;
+        latestGear = gear;
+        latestEggs = eggs || [];
 
-        let messages;
+        await sendStockEmbed(latestSeeds, latestGear, latestEggs);
 
-        try {
-            messages = await fetchWithTimeout(
-                channel.messages.fetch({ limit: 5 }),
-                10000 // 10 секунд
-            );
-        } catch (err) {
-            console.log("❌ Fetch завис или ошибка:", err.message);
-            return;
-        }
-        console.log("C: после fetch сообщений");
-
-        const msg = messages.find(m => 
-            m.embeds && 
-            m.embeds.length > 0 &&
-            m.embeds[0].title &&
-            m.embeds[0].title.includes("Grow a Garden")
-        );
-
-        if (!msg) {
-            console.log("⚠️ Embed со стоком не найден");
-            return;
-        }
-
-        const embedMsg = msg.embeds[0];
-
-        // ❌ защита от мусора
-        if (!embedMsg.title || !embedMsg.title.toLowerCase().includes('stock')) {
-            console.log("🚫 Это не сток embed");
-            return;
-        }
-
-        console.log("📦 EMBED:", embedMsg.title);
-
-        let seeds = [];
-        let gear = [];
-        let eggs = [];
-
-        if (embedMsg.fields && embedMsg.fields.length > 0) {
-            for (const field of embedMsg.fields) {
-
-                const fieldName = field.name.toLowerCase();
-                const lines = field.value.split('\n');
-
-                for (const line of lines) {
-
-                    const cleaned = line
-                        .replace(/<:[^>]+>/g, '')   // убрать эмодзи
-                        .replace(/\*\*/g, '')       // убрать **
-                        .trim();
-
-                    const match = cleaned.match(/x(\d+)\s+(.+)/i);
-                    if (!match) continue;
-
-                    const count = parseInt(match[1]);
-                    const itemName = match[2].trim();
-
-                    const item = { name: itemName, count };
-
-                    if (fieldName.includes('seed')) {
-                        seeds.push(item);
-                    } else if (fieldName.includes('gear')) {
-                        gear.push(item);
-                    } else if (fieldName.includes('eggs')) {
-                        eggs.push(item);
-                    }
-                }
-            }
-        }
-
-        console.log("🌾 SEEDS:", seeds);
-        console.log("⚙️ GEAR:", gear);
-
-        // 🧠 сравнение
-        const currentStock = JSON.stringify({ seeds, gear, eggs });
-
-        if (currentStock === lastStock) {
-            console.log("⏸️ Сток не изменился");
-            return;
-        }
-
-        lastStock = currentStock;
-
-        console.log("🚀 Новый сток!");
-
-        const currentEggs = JSON.stringify(eggs);
-
-        let showEggs = true;
-
-        if (currentEggs === lastEggs) {
-            showEggs = false;
-        }
-
-        lastEggs = currentEggs;
-
-        // =========================
-        // ✨ СОЗДАЁМ EMBED
-        // =========================
-
-        const now = new Date();
-        const unix = Math.floor(now.getTime() / 1000);
-        
-        const embed = {
-            title: "🌱 GROW A GARDEN | STOCK",
-            color: 0x00ff00,
-            fields: [],
-            footer: {
-                text: `Last update: ${now.toLocaleTimeString('en-GB')} UTC`
-            },
-            timestamp: now.toISOString()
-        };
-
-        if (seeds.length > 0) {
-            const seedText = seeds
-                .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                .join('\n');
-
-            embed.fields.push({
-                name: "🌾 SEEDS",
-                value: seedText,
-                inline: false
-            });
-        }
-
-        if (gear.length > 0) {
-            const gearText = gear
-                .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                .join('\n');
-
-            embed.fields.push({
-                name: "⚙️ GEAR",
-                value: gearText,
-                inline: false
-            });
-        }
-
-        if (eggs.length > 0 && showEggs) {
-            const eggsText = eggs
-                .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                .join('\n');
-
-            embed.fields.push({
-                name: "🥚 EGGS",
-                value: eggsText,
-                inline: false
-            });
-        }
-
-        // =========================
-        // 📤 ОТПРАВКА В DISCORD
-        // =========================
-
-        const pingText = getPingText(seeds, gear, eggs);
-
-        await axios.post(process.env.WEBHOOK_URL, {
-            content: pingText || null,
-            embeds: [embed]
-        });
-
-        console.log("📨 Отправлено!");
-        
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
     } finally {
@@ -346,14 +307,15 @@ async function testFetchChannel() {
     }
 }
 
+
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
     // первый запуск
-    await testFetchChannel();
+    await checkAllStocks();
 
     // дальше по таймеру
-    setInterval(testFetchChannel, 30 * 1000);
+    setInterval(checkAllStocks, 30 * 1000);
 });
 
 client.on('error', (err) => {
