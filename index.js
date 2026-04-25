@@ -307,15 +307,40 @@ async function checkAllStocks() {
     }
 }
 
+function startSmartScheduler() {
+
+    const scheduleNext = () => {
+        const now = new Date();
+
+        const seconds = now.getSeconds();
+
+        // сколько ждать до следующего 20 или 50
+        let targetSecond;
+
+        if (seconds < 20) targetSecond = 20;
+        else if (seconds < 50) targetSecond = 50;
+        else targetSecond = 80; // 60 + 20
+
+        let delay = (targetSecond - seconds) * 1000;
+
+        console.log(`⏱️ Следующая проверка через ${delay / 1000}s`);
+
+        setTimeout(async () => {
+            await checkAllStocks();
+            scheduleNext(); // запускаем следующий цикл
+        }, delay);
+    };
+
+    scheduleNext();
+}
+
 
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
 
-    // первый запуск
-    await checkAllStocks();
-
-    // дальше по таймеру
-    setInterval(checkAllStocks, 30 * 1000);
+    // умный планировщик
+    console.log("🧠 Smart scheduler запущен");
+    startSmartScheduler();
 });
 
 client.on('error', (err) => {
