@@ -137,6 +137,8 @@ let lastProcessedMessageIds = {
     eggs: null
 };
 
+let lastEggsMessageIdForDisplay = null;
+
 function getPingText(seeds, gear, eggs) {
     let pings = [];
 
@@ -211,7 +213,7 @@ async function fetchStock(channelId, keyword) {
     };
 }
 
-async function sendStockEmbed(seeds, gear, eggs) {
+async function sendStockEmbed(seeds, gear, eggs, showEggs) {
 
     console.log("🚀 Новый сток (по ID)!");
 
@@ -250,7 +252,7 @@ async function sendStockEmbed(seeds, gear, eggs) {
     }
 
     // 🥚 EGGS (ВСЕГДА показываем, если есть)
-    if (eggs.length > 0) {
+    if (eggs.length > 0 && showEggs) {
         embed.fields.push({
             name: "🥚 EGGS",
             value: eggs
@@ -292,6 +294,14 @@ async function checkAllStocks() {
         const gear  = gearData.items;
         const eggs  = eggsData?.items || [];
 
+        let showEggs = false;
+
+        if (eggsData?.messageId !== lastEggsMessageIdForDisplay) {
+            showEggs = true;
+            lastEggsMessageIdForDisplay = eggsData?.messageId;
+            console.log("🥚 Яйца обновились");
+        }
+
         // 🧠 ПРОВЕРКА ПО MESSAGE ID
         const isSameUpdate =
             seedsData.messageId === lastProcessedMessageIds.seeds &&
@@ -312,7 +322,7 @@ async function checkAllStocks() {
 
         console.log("📡 Обнаружен новый сток (по ID)");
 
-        await sendStockEmbed(seeds, gear, eggs);
+        await sendStockEmbed(seeds, gear, eggs, showEggs);
 
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
