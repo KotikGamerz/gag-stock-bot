@@ -129,13 +129,13 @@ const ROLE_IDS = {
     "Jungle Egg": "1486395647765643447"
 };
 
-let lastStock = null;
-let lastEggs = null;
 let isChecking = false;
 
-let latestSeeds = null;
-let latestGear = null;
-let latestEggs = null;
+let lastProcessedMessageIds = {
+    seeds: null,
+    gear: null,
+    eggs: null
+};
 
 function getPingText(seeds, gear, eggs) {
     let pings = [];
@@ -205,31 +205,15 @@ async function fetchStock(channelId, keyword) {
         embed.fields?.map(f => f.value).join('\n') ||
         '';
 
-    return parseStockText(text);
+    return {
+        items: parseStockText(text),
+        messageId: msg.id
+    };
 }
 
 async function sendStockEmbed(seeds, gear, eggs) {
 
-    const currentStock = JSON.stringify({ seeds, gear, eggs });
-
-    if (currentStock === lastStock) {
-        console.log("⏸️ Сток не изменился");
-        return;
-    }
-
-    lastStock = currentStock;
-
-    console.log("🚀 Новый сток!");
-
-    const currentEggs = JSON.stringify(eggs);
-
-    let showEggs = true;
-
-    if (currentEggs === lastEggs) {
-        showEggs = false;
-    }
-
-    lastEggs = currentEggs;
+    console.log("🚀 Новый сток (по ID)!");
 
     const now = new Date();
 
@@ -243,26 +227,35 @@ async function sendStockEmbed(seeds, gear, eggs) {
         timestamp: now.toISOString()
     };
 
+    // 🌾 SEEDS
     if (seeds.length > 0) {
         embed.fields.push({
             name: "🌾 SEEDS",
-            value: seeds.map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`).join('\n'),
+            value: seeds
+                .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
+                .join('\n'),
             inline: false
         });
     }
 
+    // ⚙️ GEAR
     if (gear.length > 0) {
         embed.fields.push({
             name: "⚙️ GEAR",
-            value: gear.map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`).join('\n'),
+            value: gear
+                .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
+                .join('\n'),
             inline: false
         });
     }
 
-    if (eggs.length > 0 && showEggs) {
+    // 🥚 EGGS (ВСЕГДА показываем, если есть)
+    if (eggs.length > 0) {
         embed.fields.push({
             name: "🥚 EGGS",
-            value: eggs.map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`).join('\n'),
+            value: eggs
+                .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
+                .join('\n'),
             inline: false
         });
     }
@@ -285,20 +278,41 @@ async function checkAllStocks() {
     try {
         console.log("🔄 Проверка нового источника...");
 
-        const seeds = await fetchStock(process.env.SEEDS_CHANNEL_ID, 'seed');
-        const gear = await fetchStock(process.env.GEAR_CHANNEL_ID, 'gear');
-        const eggs = await fetchStock(process.env.EGGS_CHANNEL_ID, 'egg');
+        const seedsData = await fetchStock(process.env.SEEDS_CHANNEL_ID, 'seed');
+        const gearData  = await fetchStock(process.env.GEAR_CHANNEL_ID, 'gear');
+        const eggsData  = await fetchStock(process.env.EGGS_CHANNEL_ID, 'egg');
 
-        if (!seeds || !gear) {
+        // базовая защита
+        if (!seedsData || !gearData) {
             console.log("⏳ Нет seeds или gear");
             return;
         }
 
-        latestSeeds = seeds;
-        latestGear = gear;
-        latestEggs = eggs || [];
+        const seeds = seedsData.items;
+        const gear  = gearData.items;
+        const eggs  = eggsData?.items || [];
 
-        await sendStockEmbed(latestSeeds, latestGear, latestEggs);
+        // 🧠 ПРОВЕРКА ПО MESSAGE ID
+        const isSameUpdate =
+            seedsData.messageId === lastProcessedMessageIds.seeds &&
+            gearData.messageId  === lastProcessedMessageIds.gear &&
+            (eggsData?.messageId || null) === lastProcessedMessageIds.eggs;
+
+        if (isSameUpdate) {
+            console.log("⏸️ Уже обработанный сток (по ID)");
+            return;
+        }
+
+        // 🧠 ОБНОВЛЯЕМ ID
+        lastProcessedMessageIds = {
+            seeds: seedsData.messageId,
+            gear:  gearData.messageId,
+            eggs:  eggsData?.messageId || null
+        };
+
+        console.log("📡 Обнаружен новый сток (по ID)");
+
+        await sendStockEmbed(seeds, gear, eggs);
 
     } catch (err) {
         console.error("❌ Ошибка:", err.message);
