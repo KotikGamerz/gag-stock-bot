@@ -43,7 +43,7 @@ const EMOJIS = {
     "Ember Lily": "🔥",
     "Sugar Apple": "🍏",
     "Burning Bud": "🔥",
-    "Giant Pipecone": "🌲",
+    "Giant Pinecone": "🌲",
     "Elder Strawberry": "🍓",
     "Romanesco": "🥦",
     "Crimson Thorn": "🌹",
