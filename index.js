@@ -86,6 +86,12 @@ const EMOJIS = {
 
 const RARE_ITEMS = {
     seeds: [
+        "Pepper",
+        "Cacao",
+        "Sunflower",
+        "Beanstalk",
+        "Ember Lily",
+        "Sugar Apple",
         "Burning Bud",
         "Giant Pipecone",
         "Elder Strawberry",
@@ -109,6 +115,12 @@ const RARE_ITEMS = {
 
 const ROLE_IDS = {
     // 🌾 SEEDS
+    "Pepper": "1498259306624188436",
+    "Cacao": "1498259843264544818",
+    "Sunflower": "1498259988878200922",
+    "Beanstalk": "1498260076950061246",
+    "Ember Lily": "1498260222949462037",
+    "Sugar Apple": "1498260292767973416",
     "Burning Bud": "1486395632796303541",
     "Giant Pipecone": "1486395629310705815",
     "Elder Strawberry": "1486395626202730506",
