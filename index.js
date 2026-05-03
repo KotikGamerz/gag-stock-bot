@@ -274,7 +274,11 @@ async function sendStockEmbed(seeds, gear, eggs, showEggs) {
         });
     }
 
-    const pingText = getPingText(seeds, gear, eggs);
+    const pingText = getPingText(
+        seeds,
+        gear,
+        showEggs ? eggs : []
+    );
 
     await axios.post(process.env.WEBHOOK_URL, {
         content: pingText || null,
