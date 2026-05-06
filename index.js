@@ -150,6 +150,7 @@ let lastProcessedMessageIds = {
 };
 
 let lastEggsMessageIdForDisplay = null;
+let lastAdminMessageId = null;
 
 function getPingText(seeds, gear, eggs) {
     let pings = [];
@@ -214,6 +215,11 @@ async function fetchStock(channelId, keyword) {
 
     const embed = msg.embeds[0];
 
+    const title = embed.title?.toLowerCase() || '';
+
+    const isAdmin =
+        title.includes('admin');
+
     const text =
         embed.description ||
         embed.fields?.map(f => f.value).join('\n') ||
@@ -221,7 +227,8 @@ async function fetchStock(channelId, keyword) {
 
     return {
         items: parseStockText(text),
-        messageId: msg.id
+        messageId: msg.id,
+        isAdmin
     };
 }
 
@@ -311,6 +318,68 @@ async function checkAllStocks() {
         const eggs  = eggsData?.items || [];
 
         let showEggs = false;
+
+        const isAdminSeeds = seedsData.isAdmin;
+        const isAdminGear  = gearData.isAdmin;
+
+        if (isAdminSeeds || isAdminGear) {
+
+        const currentAdminId = (isAdminSeeds ? seedsData.messageId : '') + (isAdminGear ? gearData.messageId : '');
+
+        if (currentAdminId === lastAdminMessageId) {
+            console.log("⏸️ ADMIN уже обработан");
+            return;
+        }
+
+        lastAdminMessageId = currentAdminId;
+
+        console.log("🚨 ADMIN STOCK detected");
+
+        const embed = {
+            title: "🛠️ GROW A GARDEN | ADMIN STOCK",
+            color: 0xff0000,
+            fields: [],
+            footer: {
+                text: `Admin update: ${new Date().toLocaleTimeString('en-GB')} UTC`
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        if (isAdminSeeds && seeds.length > 0) {
+            embed.fields.push({
+                name: "🌾 SEEDS",
+                value: seeds
+                    .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
+                    .join('\n'),
+                inline: false
+            });
+        }
+
+        if (isAdminGear && gear.length > 0) {
+            embed.fields.push({
+                name: "⚙️ GEAR",
+                value: gear
+                    .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
+                    .join('\n'),
+                inline: false
+            });
+        }
+
+        const pingText = getPingText(
+            isAdminSeeds ? seeds : [],
+            isAdminGear ? gear : [],
+            []
+        );
+
+        await axios.post(process.env.WEBHOOK_URL, {
+            content: pingText || null,
+            embeds: [embed]
+        });
+
+        console.log("🚨 ADMIN STOCK отправлен");
+
+        return;
+        }
 
         if (eggsData?.messageId !== lastEggsMessageIdForDisplay) {
             showEggs = true;
