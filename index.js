@@ -152,6 +152,34 @@ let lastProcessedMessageIds = {
 let lastEggsMessageIdForDisplay = null;
 let lastAdminMessageId = null;
 
+async function sendToWebhooks(payload) {
+
+    const webhookUrls = [
+        process.env.WEBHOOK_URL,
+        process.env.KIRO_WEBHOOK_URL
+    ].filter(Boolean);
+
+    const results = await Promise.allSettled(
+        webhookUrls.map(url =>
+            axios.post(url, payload)
+        )
+    );
+
+    results.forEach((result, index) => {
+
+        if (result.status === 'fulfilled') {
+            console.log(`✅ Webhook #${index + 1} отправлен`);
+        } else {
+            console.error(
+                `❌ Webhook #${index + 1} ошибка:`,
+                result.reason?.message
+            );
+        }
+
+    });
+
+}
+
 function getPingText(seeds, gear, eggs) {
     let pings = [];
 
@@ -287,7 +315,7 @@ async function sendStockEmbed(seeds, gear, eggs, showEggs) {
         showEggs ? eggs : []
     );
 
-    await axios.post(process.env.WEBHOOK_URL, {
+    await sendToWebhooks({
         content: pingText || null,
         embeds: [embed]
     });
@@ -371,7 +399,7 @@ async function checkAllStocks() {
             []
         );
 
-        await axios.post(process.env.WEBHOOK_URL, {
+        await sendToWebhooks({
             content: pingText || null,
             embeds: [embed]
         });
