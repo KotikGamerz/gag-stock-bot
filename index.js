@@ -152,32 +152,49 @@ let lastProcessedMessageIds = {
 let lastEggsMessageIdForDisplay = null;
 let lastAdminMessageId = null;
 
-async function sendToWebhooks(payload) {
+let isCheckingGH = false;
 
-    const webhookUrls = [
+let lastGHMessageIds = {
+    seeds: null,
+    gear: null
+};
+
+let lastGHWeatherMessageIdForDisplay = null;
+
+const ENABLE_GH_STOCK =
+    process.env.ENABLE_GH_STOCK !== 'false';
+
+async function sendToWebhooks(
+    payload,
+    webhookUrls = [
         process.env.WEBHOOK_URL,
         process.env.KIRO_WEBHOOK_URL
-    ].filter(Boolean);
+    ]
+) {
+    const urls = webhookUrls.filter(Boolean);
+
+    if (!urls.length) {
+        console.log("❌ Нет вебхуков для отправки");
+        return;
+    }
 
     const results = await Promise.allSettled(
-        webhookUrls.map(url =>
+        urls.map(url =>
             axios.post(url, payload)
         )
     );
 
     results.forEach((result, index) => {
-
         if (result.status === 'fulfilled') {
             console.log(`✅ Webhook #${index + 1} отправлен`);
         } else {
             console.error(
                 `❌ Webhook #${index + 1} ошибка:`,
+                result.reason?.response?.data ||
                 result.reason?.message
             );
         }
-
     });
-
 }
 
 function getPingText(seeds, gear, eggs) {
@@ -219,6 +236,393 @@ function parseStockText(text) {
     }
 
     return items;
+}
+
+// ==================================================
+// 🌱 GARDEN HORIZONS
+// ==================================================
+
+async function getGHRoleName(guild, roleId) {
+    if (!guild || !roleId) return null;
+
+    const cachedRole = guild.roles.cache.get(roleId);
+
+    if (cachedRole) {
+        return cachedRole.name;
+    }
+
+    try {
+        const fetchedRole = await guild.roles.fetch(roleId);
+        return fetchedRole?.name || null;
+    } catch (err) {
+        console.log(
+            `⚠️ Не удалось получить название роли ${roleId}:`,
+            err.message
+        );
+
+        return null;
+    }
+}
+
+async function parseGHStockText(text, guild) {
+    const items = [];
+
+    for (const rawLine of text.split('\n')) {
+        const line = rawLine
+            .replace(/^[•\-]\s*/, '')
+            .trim();
+
+        if (!line) continue;
+
+        /*
+            Поддерживает оба варианта:
+
+            <@&123456789> (x8)
+            Magnifying Glass (x1)
+        */
+        const match = line.match(
+            /^(?:<@&(\d+)>|(.+?))\s*\(x(\d+)\)$/i
+        );
+
+        if (!match) continue;
+
+        const roleId = match[1] || null;
+        const plainName = match[2]?.trim() || null;
+        const count = Number(match[3]);
+
+        let name = plainName;
+
+        if (roleId) {
+            name = await getGHRoleName(guild, roleId);
+        }
+
+        if (!name || !Number.isFinite(count)) {
+            console.log("⚠️ GH строка не распознана:", line);
+            continue;
+        }
+
+        items.push({
+            name,
+            count
+        });
+    }
+
+    return items;
+}
+
+async function fetchGHStock(channelId, shopType) {
+    const channel = client.channels.cache.get(channelId);
+
+    if (!channel) {
+        console.log(`❌ GH ${shopType} канал не найден: ${channelId}`);
+        return null;
+    }
+
+    const messages = await channel.messages.fetch({
+        limit: 5
+    });
+
+    const sorted = [...messages.values()]
+        .sort(
+            (a, b) =>
+                b.createdTimestamp -
+                a.createdTimestamp
+        );
+
+    const requiredTitle =
+        shopType === 'seeds'
+            ? 'seed shop'
+            : 'gear shop';
+
+    const msg = sorted.find(message => {
+        if (!message.embeds?.length) return false;
+
+        const title =
+            (message.embeds[0].title || '')
+                .toLowerCase();
+
+        return title.includes(requiredTitle);
+    });
+
+    if (!msg) {
+        console.log(`⚠️ GH ${shopType} embed не найден`);
+        return null;
+    }
+
+    const embed = msg.embeds[0];
+
+    const text =
+        embed.description ||
+        embed.fields?.map(field => field.value).join('\n') ||
+        '';
+
+    const items = await parseGHStockText(
+        text,
+        msg.guild
+    );
+
+    return {
+        items,
+        messageId: msg.id
+    };
+}
+
+async function fetchGHWeather() {
+    const channel = client.channels.cache.get(
+        process.env.GH_WEATHER_CHANNEL_ID
+    );
+
+    if (!channel) {
+        console.log("❌ GH Weather канал не найден");
+        return null;
+    }
+
+    const messages = await channel.messages.fetch({
+        limit: 5
+    });
+
+    const sorted = [...messages.values()]
+        .sort(
+            (a, b) =>
+                b.createdTimestamp -
+                a.createdTimestamp
+        );
+
+    const msg = sorted.find(message => {
+        if (!message.embeds?.length) return false;
+
+        const title =
+            (message.embeds[0].title || '')
+                .toLowerCase();
+
+        return title.includes('weather update');
+    });
+
+    if (!msg) {
+        console.log("ℹ️ GH Weather embed не найден");
+        return null;
+    }
+
+    const embed = msg.embeds[0];
+
+    const text =
+        embed.description ||
+        embed.fields?.map(field => field.value).join('\n') ||
+        '';
+
+    /*
+        Поддерживает:
+
+        It's now <@&123456789>!
+        It's now @Fog!
+        It's now Fog!
+    */
+    const match = text.match(
+        /it's now\s+(?:<@&(\d+)>|@?([^!\n]+))!/i
+    );
+
+    if (!match) {
+        console.log(
+            "⚠️ Не удалось распознать GH weather:",
+            text
+        );
+
+        return null;
+    }
+
+    const roleId = match[1] || null;
+    const plainName = match[2]?.trim() || null;
+
+    let name = plainName;
+
+    if (roleId) {
+        name = await getGHRoleName(
+            msg.guild,
+            roleId
+        );
+    }
+
+    if (!name) {
+        console.log("⚠️ Название GH weather не получено");
+        return null;
+    }
+
+    return {
+        name,
+        messageId: msg.id
+    };
+}
+
+function renderGHItems(items) {
+    return items
+        .map(item =>
+            `- ${item.name} — ${item.count}`
+        )
+        .join('\n');
+}
+
+async function sendGHStockEmbed(
+    seeds,
+    gear,
+    weatherName = null
+) {
+    const now = new Date();
+
+    const embed = {
+        title: "🌱 GARDEN HORIZONS | STOCK",
+        color: 0x55dd88,
+        fields: [],
+        footer: {
+            text:
+                `Last update: ` +
+                now.toLocaleTimeString('en-GB')
+        },
+        timestamp: now.toISOString()
+    };
+
+    embed.fields.push({
+        name: "🌾 SEEDS",
+        value: renderGHItems(seeds),
+        inline: false
+    });
+
+    embed.fields.push({
+        name: "⚙️ GEAR",
+        value: renderGHItems(gear),
+        inline: false
+    });
+
+    if (weatherName) {
+        embed.fields.push({
+            name: "☀️ WEATHER",
+            value: `- ${weatherName}`,
+            inline: false
+        });
+    }
+
+    /*
+        Пока пингов нет.
+
+        Позже сюда легко добавим:
+        const pingText = getGHPingText(seeds, gear, weatherName);
+
+        и затем:
+        content: pingText || null
+    */
+
+    const webhookUrls = [
+        process.env.GH_WEBHOOK_URL
+    ];
+
+    if (process.env.KIRO_GH_WEBHOOK_URL) {
+        webhookUrls.push(
+            process.env.KIRO_GH_WEBHOOK_URL
+        );
+    }
+
+    await sendToWebhooks(
+        {
+            embeds: [embed]
+        },
+        webhookUrls
+    );
+
+    console.log("🌱 Garden Horizons stock отправлен");
+}
+
+async function checkGHStocks() {
+    if (isCheckingGH) {
+        console.log("⏸️ GH проверка уже выполняется");
+        return;
+    }
+
+    isCheckingGH = true;
+
+    try {
+        console.log("🌱 Проверка Garden Horizons...");
+
+        const [seedsData, gearData, weatherData] =
+            await Promise.all([
+                fetchGHStock(
+                    process.env.GH_SEEDS_CHANNEL_ID,
+                    'seeds'
+                ),
+                fetchGHStock(
+                    process.env.GH_GEAR_CHANNEL_ID,
+                    'gear'
+                ),
+                fetchGHWeather()
+            ]);
+
+        if (!seedsData || !gearData) {
+            console.log("❌ GH: нет seeds или gear");
+            return;
+        }
+
+        if (!seedsData.items.length) {
+            console.log("❌ GH: seeds не распознаны");
+            return;
+        }
+
+        if (!gearData.items.length) {
+            console.log("❌ GH: gear не распознаны");
+            return;
+        }
+
+        const stockChanged =
+            seedsData.messageId !==
+                lastGHMessageIds.seeds ||
+            gearData.messageId !==
+                lastGHMessageIds.gear;
+
+        if (!stockChanged) {
+            console.log("⏸️ GH stock уже обработан");
+            return;
+        }
+
+        /*
+            Погоду показываем только один раз.
+
+            Если сообщение Weather новое, оно прикрепится
+            к этому новому stock embed.
+
+            При следующем обычном рестоке Weather уже
+            показываться не будет.
+        */
+        const showWeather =
+            weatherData &&
+            weatherData.messageId !==
+                lastGHWeatherMessageIdForDisplay;
+
+        const weatherName =
+            showWeather
+                ? weatherData.name
+                : null;
+
+        lastGHMessageIds = {
+            seeds: seedsData.messageId,
+            gear: gearData.messageId
+        };
+
+        if (showWeather) {
+            lastGHWeatherMessageIdForDisplay =
+                weatherData.messageId;
+        }
+
+        await sendGHStockEmbed(
+            seedsData.items,
+            gearData.items,
+            weatherName
+        );
+
+    } catch (err) {
+        console.error(
+            "❌ Garden Horizons ошибка:",
+            err
+        );
+    } finally {
+        isCheckingGH = false;
+    }
 }
 
 async function fetchStock(channelId, keyword) {
@@ -463,8 +867,17 @@ function startSmartScheduler() {
         console.log(`⏱️ Следующая проверка через ${delay / 1000}s`);
 
         setTimeout(async () => {
-            await checkAllStocks();
-            scheduleNext(); // запускаем следующий цикл
+
+            await Promise.all([
+                checkAllStocks(),
+
+                ENABLE_GH_STOCK
+                    ? checkGHStocks()
+                    : Promise.resolve()
+            ]);
+
+            scheduleNext();
+
         }, delay);
     };
 
