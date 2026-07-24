@@ -84,6 +84,47 @@ const EMOJIS = {
     "Jungle Egg": "🌿"
 };
 
+const GH_EMOJIS = {
+    // Seeds
+    "Rose": "🌹",
+    "Apple": "🍎",
+    "Tomato": "🍅",
+    "Beetroot": "🫜",
+    "Mushroom": "🍄",
+    "Strawberry": "🍓",
+    "Onion": "🧅",
+    "Corn": "🌽",
+    "Carrot": "🥕",
+    "Pineapple": "🍍",
+    "Watermelon": "🍉",
+    "Mango": "🥭",
+    "Cherry": "🍒",
+    "Bamboo": "🎍",
+    "Cabbage": "🥬",
+    "Potato": "🥔",
+    "Plum": "🟣",
+    "Banana": "🍌",
+    "Wheat": "🌾",
+
+    // Gear
+    "Reverter": "♻️",
+    "Trowel": "🪏",
+    "Super Sprinkler": "🚿",
+    "Favorite Tool": "⭐",
+    "Turbo Sprinkler": "💨",
+    "Harvest Bell": "🔔",
+    "Basic Sprinkler": "💦",
+    "Watering Can": "💧",
+
+    // Weather
+    "Fog": "🌫️",
+    "Rain": "🌧️",
+    "Sandstorm": "🌪️",
+    "Snow": "❄️",
+    "Starfall": "🌠",
+    "Storm": "⛈️",
+};
+
 const RARE_ITEMS = {
     seeds: [
         "Pepper",
@@ -93,7 +134,7 @@ const RARE_ITEMS = {
         "Ember Lily",
         "Sugar Apple",
         "Burning Bud",
-        "Giant Pipecone",
+        "Giant Pinecone",
         "Elder Strawberry",
         "Romanesco",
         "Crimson Thorn",
@@ -122,7 +163,7 @@ const ROLE_IDS = {
     "Ember Lily": "1498260222949462037",
     "Sugar Apple": "1498260292767973416",
     "Burning Bud": "1486395632796303541",
-    "Giant Pipecone": "1486395629310705815",
+    "Giant Pinecone": "1486395629310705815",
     "Elder Strawberry": "1486395626202730506",
     "Romanesco": "1486395622780043458",
     "Crimson Thorn": "1486395619634581585",
@@ -456,7 +497,7 @@ async function fetchGHWeather() {
 function renderGHItems(items) {
     return items
         .map(item =>
-            `- ${item.name} — ${item.count}`
+            `- ${GH_EMOJIS[item.name] || "•"} ${item.name} — ${item.count}`
         )
         .join('\n');
 }
