@@ -109,6 +109,7 @@ const GH_EMOJIS = {
     // Gear
     "Reverter": "♻️",
     "Trowel": "🪏",
+    "Magnifying Glass": "🔍",
     "Super Sprinkler": "🚿",
     "Favorite Tool": "⭐",
     "Turbo Sprinkler": "💨",
@@ -536,7 +537,7 @@ async function sendGHStockEmbed(
     if (weatherName) {
         embed.fields.push({
             name: "☀️ WEATHER",
-            value: `- ${weatherName}`,
+            value: `- ${GH_EMOJIS[weatherName] || "•"} ${weatherName}`
             inline: false
         });
     }
