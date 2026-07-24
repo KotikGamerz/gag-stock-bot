@@ -537,7 +537,7 @@ async function sendGHStockEmbed(
     if (weatherName) {
         embed.fields.push({
             name: "☀️ WEATHER",
-            value: `- ${GH_EMOJIS[weatherName] || "•"} ${weatherName}`
+            value: `- ${GH_EMOJIS[weatherName] || "•"} ${weatherName}`,
             inline: false
         });
     }
