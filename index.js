@@ -124,6 +124,8 @@ const GH_EMOJIS = {
     "Snow": "❄️",
     "Starfall": "🌠",
     "Storm": "⛈️",
+    "All Admin Weather": "❓",
+    "Volcano Eruption": "🌋"
 };
 
 const RARE_ITEMS = {
@@ -155,6 +157,29 @@ const RARE_ITEMS = {
     ]
 };
 
+const GH_RARE_ITEMS = {
+    seeds: [
+        "Pineapple",
+        "Watermelon",
+        "Mango",
+        "Cherry",
+        "Cabbage"
+    ],
+    gear: [
+        "Super Sprinkler",
+        "Basic Sprinkler",
+        "Turbo Sprinkler"
+    ],
+    weather: [
+        "Fog",
+        "Rain",
+        "Sandstorm",
+        "Snow",
+        "Starfall",
+        "Storm"
+    ]
+};
+
 const ROLE_IDS = {
     // 🌾 SEEDS
     "Pepper": "1498259306624188436",
@@ -181,6 +206,28 @@ const ROLE_IDS = {
     // 🥚 EGGS
     "Bug Egg": "1486395651368554536",
     "Jungle Egg": "1486395647765643447"
+};
+
+const GH_ROLE_IDS = {
+    // 🌾 Seeds
+    "Pineapple": "1530578369320718387",
+    "Watermelon": "1530578449331257395",
+    "Mango": "1530578526560977067",
+    "Cherry": "1530578624082739361",
+    "Cabbage": "1530578672405446908",
+
+    // ⚙️ Gear
+    "Super Sprinkler": "1530578760603140186",
+    "Basic Sprinkler": "1530578991386202353",
+    "Turbo Sprinkler": "1530578915981135912",
+
+    // 🌦️ Weather
+    "Fog": "1530579116506616029",
+    "Rain": "1530579181270728705",
+    "Sandstorm": "1530579327786287265",
+    "Snow": "1530579559622115385",
+    "Starfall": "1530579743265521664",
+    "Storm": "1530579828690911425"
 };
 
 let isChecking = false;
@@ -305,6 +352,34 @@ async function getGHRoleName(guild, roleId) {
         return null;
     }
 }
+
+function getGHPingText(seeds, gear, weatherName = null) {
+    const pings = [];
+
+    const check = (items, rareList) => {
+        for (const item of items) {
+            if (
+                rareList.includes(item.name) &&
+                GH_ROLE_IDS[item.name]
+            ) {
+                pings.push(`<@&${GH_ROLE_IDS[item.name]}>`);
+            }
+        }
+    };
+
+    check(seeds, GH_RARE_ITEMS.seeds);
+    check(gear, GH_RARE_ITEMS.gear);
+
+    if (
+        weatherName &&
+        GH_RARE_ITEMS.weather.includes(weatherName) &&
+        GH_ROLE_IDS[weatherName]
+    ) {
+        pings.push(`<@&${GH_ROLE_IDS[weatherName]}>`);
+    }
+
+    return [...new Set(pings)].join(" ");
+        }
 
 async function parseGHStockText(text, guild) {
     const items = [];
@@ -542,15 +617,11 @@ async function sendGHStockEmbed(
         });
     }
 
-    /*
-        Пока пингов нет.
-
-        Позже сюда легко добавим:
-        const pingText = getGHPingText(seeds, gear, weatherName);
-
-        и затем:
-        content: pingText || null
-    */
+    const pingText = getGHPingText(
+        seeds,
+        gear,
+        weatherName
+    );
 
     const webhookUrls = [
         process.env.GH_WEBHOOK_URL
@@ -564,6 +635,7 @@ async function sendGHStockEmbed(
 
     await sendToWebhooks(
         {
+            content: pingText || null,
             embeds: [embed]
         },
         webhookUrls
