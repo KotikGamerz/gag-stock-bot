@@ -116,6 +116,7 @@ const GH_EMOJIS = {
     "Harvest Bell": "🔔",
     "Basic Sprinkler": "💦",
     "Watering Can": "💧",
+    "Super Watering Can": "🌊",
 
     // Weather
     "Fog": "🌫️",
@@ -168,7 +169,8 @@ const GH_RARE_ITEMS = {
     gear: [
         "Super Sprinkler",
         "Basic Sprinkler",
-        "Turbo Sprinkler"
+        "Turbo Sprinkler",
+        "Super Watering Can"
     ],
     weather: [
         "Fog",
@@ -220,6 +222,7 @@ const GH_ROLE_IDS = {
     "Super Sprinkler": "1530578760603140186",
     "Basic Sprinkler": "1530578991386202353",
     "Turbo Sprinkler": "1530578915981135912",
+    "Super Watering Can": "1531256715020996709",
 
     // 🌦️ Weather
     "Fog": "1530579116506616029",
