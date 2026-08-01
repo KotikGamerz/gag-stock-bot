@@ -150,7 +150,7 @@ const RARE_ITEMS = {
         "Zebrazinkle",
         "Octobloom",
         "Alien Apple",
-        "Tiki Totem"
+        "Moongrain Meadow"
     ],
     gear: [
         "Levelup Lollipop",
@@ -169,7 +169,8 @@ const GH_RARE_ITEMS = {
         "Watermelon",
         "Mango",
         "Cherry",
-        "Cabbage"
+        "Cabbage",
+        "Bluelight Orchid"
     ],
     gear: [
         "Super Sprinkler",
@@ -203,7 +204,7 @@ const ROLE_IDS = {
     "Zebrazinkle": "1486395616505630950",
     "Octobloom": "1486395613200257156",
     "Alien Apple": "1486395609752535120",
-    "Tiki Totem": "1490567124777959544",
+    "Moongrain Meadow": "1490567124777959544",
 
     // ⚙️ GEAR
     "Levelup Lollipop": "1486395644821110987",
@@ -222,6 +223,7 @@ const GH_ROLE_IDS = {
     "Mango": "1530578526560977067",
     "Cherry": "1530578624082739361",
     "Cabbage": "1530578672405446908",
+    "Bluelight Orchid": "1533254374674010172",
 
     // ⚙️ Gear
     "Super Sprinkler": "1530578760603140186",
