@@ -50,7 +50,7 @@ const EMOJIS = {
     "Zebrazinkle": "🌀",
     "Octobloom": "🌸",
     "Alien Apple": "🛸",
-    "Tiki Totem": "🟤",
+    "Moongrain Meadow": "🌕",
 
     // ⚙️ GEAR
     "Watering Can": "💧",
@@ -95,6 +95,10 @@ const GH_EMOJIS = {
     "Onion": "🧅",
     "Corn": "🌽",
     "Carrot": "🥕",
+    "Cauliflower": "🥦",
+    "Blueberry": "🫐",
+    "Chestnut": "🌰",
+    "Bluelight Orchid": "💠",
     "Pineapple": "🍍",
     "Watermelon": "🍉",
     "Mango": "🥭",
@@ -126,7 +130,8 @@ const GH_EMOJIS = {
     "Starfall": "🌠",
     "Storm": "⛈️",
     "All Admin Weather": "❓",
-    "Volcano Eruption": "🌋"
+    "Volcano Eruption": "🌋",
+    "Singularity": "🌌"
 };
 
 const RARE_ITEMS = {
