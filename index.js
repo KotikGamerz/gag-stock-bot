@@ -17,6 +17,23 @@ app.listen(port, () => {
 
 const client = new Client();
 
+const REQUEST_TIMEOUT = 15000;
+
+function withTimeout(promise, timeoutMs, label) {
+    let timeoutId;
+
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${label}: timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+    });
+
+    return Promise.race([
+        promise.finally(() => clearTimeout(timeoutId)),
+        timeoutPromise
+    ]);
+}
+
 const EMOJIS = {
     // 🌾 SEEDS
     "Carrot": "🥕",
@@ -279,7 +296,9 @@ async function sendToWebhooks(
 
     const results = await Promise.allSettled(
         urls.map(url =>
-            axios.post(url, payload)
+            axios.post(url, payload, {
+                timeout: REQUEST_TIMEOUT
+            })
         )
     );
 
@@ -351,7 +370,11 @@ async function getGHRoleName(guild, roleId) {
     }
 
     try {
-        const fetchedRole = await guild.roles.fetch(roleId);
+        const fetchedRole = await withTimeout(
+            guild.roles.fetch(roleId),
+            REQUEST_TIMEOUT,
+            `GH role fetch ${roleId}`
+        );
         return fetchedRole?.name || null;
     } catch (err) {
         console.log(
@@ -445,9 +468,13 @@ async function fetchGHStock(channelId, shopType) {
         return null;
     }
 
-    const messages = await channel.messages.fetch({
-        limit: 5
-    });
+    const messages = await withTimeout(
+        channel.messages.fetch({
+            limit: 5
+        }),
+        REQUEST_TIMEOUT,
+        `GH ${shopType} messages.fetch`
+    );
 
     const sorted = [...messages.values()]
         .sort(
@@ -504,9 +531,13 @@ async function fetchGHWeather() {
         return null;
     }
 
-    const messages = await channel.messages.fetch({
-        limit: 5
-    });
+    const messages = await withTimeout(
+        channel.messages.fetch({
+            limit: 5
+        }),
+        REQUEST_TIMEOUT,
+        `GH weather messages.fetch`
+    );
 
     const sorted = [...messages.values()]
         .sort(
@@ -986,28 +1017,45 @@ function startSmartScheduler() {
         else if (seconds < 50) targetSecond = 50;
         else targetSecond = 80; // 60 + 20
 
-        let delay = (targetSecond - seconds) * 1000;
+        const delay = (targetSecond - seconds) * 1000;
 
         console.log(`⏱️ Следующая проверка через ${delay / 1000}s`);
 
-        setTimeout(async () => {
+        setTimeout(() => {
 
-            await Promise.all([
+            // СРАЗУ планируем следующую проверку.
+            // Даже если текущая зависнет, scheduler продолжит жить.
+            scheduleNext();
+
+            Promise.allSettled([
                 checkAllStocks(),
 
                 ENABLE_GH_STOCK
                     ? checkGHStocks()
                     : Promise.resolve()
-            ]);
+            ]).then(results => {
 
-            scheduleNext();
+                results.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        const name =
+                            index === 0
+                                ? 'GAG'
+                                : 'Garden Horizons';
+
+                        console.error(
+                            `❌ ${name} scheduler error:`,
+                            result.reason
+                        );
+                    }
+                });
+
+            });
 
         }, delay);
     };
 
     scheduleNext();
 }
-
 
 client.on('ready', async () => {
     console.log(`✅ Залогинен как ${client.user.tag}`);
