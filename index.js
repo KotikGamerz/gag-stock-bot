@@ -1077,8 +1077,64 @@ client.on('rateLimit', (info) => {
     console.log("⏳ RATE LIMIT:", info);
 });
 
-console.log("🔑 TOKEN:", process.env.USER_TOKEN ? "есть" : "нет");
+async function startDiscord() {
+    console.log("🔑 TOKEN:", process.env.USER_TOKEN ? "есть" : "нет");
 
-client.login(process.env.USER_TOKEN)
-    .then(() => console.log("📲 login() вызван успешно"))
-    .catch(err => console.error("❌ LOGIN ERROR:", err));
+    // 1. Проверяем, может ли именно этот Render-сервис
+    // вообще достучаться до Discord API.
+    try {
+        console.log("🌐 Проверяю соединение Render → Discord API...");
+
+        const response = await axios.get(
+            "https://discord.com/api/v10/gateway",
+            {
+                timeout: REQUEST_TIMEOUT
+            }
+        );
+
+        console.log(
+            "✅ Discord API доступен:",
+            response.status,
+            response.data
+        );
+    } catch (err) {
+        console.error("❌ Discord API недоступен");
+
+        console.error(
+            "Причина:",
+            err.code || err.message
+        );
+
+        if (err.response) {
+            console.error(
+                "HTTP статус:",
+                err.response.status
+            );
+        }
+
+        return;
+    }
+
+    // 2. Если API работает — пробуем уже настоящий login.
+    try {
+        console.log("🔐 Начинаю client.login()...");
+
+        await withTimeout(
+            client.login(process.env.USER_TOKEN),
+            20000,
+            "Discord client.login"
+        );
+
+        console.log("📲 client.login() завершился успешно");
+        console.log("⏳ Жду событие ready...");
+    } catch (err) {
+        console.error(
+            "❌ LOGIN НЕ УДАЛСЯ:",
+            err.message
+        );
+
+        console.error(err);
+    }
+}
+
+startDiscord();
