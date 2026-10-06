@@ -781,6 +781,7 @@ async function checkGHStocks() {
 }
 
 async function fetchStock(channelId, keyword) {
+
     const channel = client.channels.cache.get(channelId);
 
     if (!channel) {
@@ -788,11 +789,15 @@ async function fetchStock(channelId, keyword) {
         return null;
     }
 
-    const messages = await channel.messages.fetch({ limit: 5 });
+    const messages = await channel.messages.fetch({
+        limit: 5
+    });
 
     const msg = messages.find(m =>
         m.embeds?.length > 0 &&
-        m.embeds[0].title?.toLowerCase().includes(keyword)
+        m.embeds[0].title
+            ?.toLowerCase()
+            .includes(keyword)
     );
 
     if (!msg) {
@@ -802,19 +807,23 @@ async function fetchStock(channelId, keyword) {
 
     const embed = msg.embeds[0];
 
-    const title = embed.title?.toLowerCase() || '';
+    const title =
+        embed.title?.toLowerCase() || '';
 
     const isAdmin =
         title.includes('admin');
 
     const text =
         embed.description ||
-        embed.fields?.map(f => f.value).join('\n') ||
+        embed.fields
+            ?.map(f => f.value)
+            .join('\n') ||
         '';
 
     return {
         items: parseStockText(text),
         messageId: msg.id,
+        createdTimestamp: msg.createdTimestamp,
         isAdmin
     };
 }
@@ -884,124 +893,432 @@ async function sendStockEmbed(seeds, gear, eggs, showEggs) {
 
 async function checkAllStocks() {
 
-    if (isChecking) return;
+    if (isChecking) {
+        return;
+    }
+
     isChecking = true;
 
     try {
+
         console.log("🔄 Проверка нового источника...");
 
-        const seedsData = await fetchStock(process.env.SEEDS_CHANNEL_ID, 'seed');
-        const gearData  = await fetchStock(process.env.GEAR_CHANNEL_ID, 'gear');
-        const eggsData  = await fetchStock(process.env.EGGS_CHANNEL_ID, 'egg');
+        const seedsData =
+            await fetchStock(
+                process.env.SEEDS_CHANNEL_ID,
+                'seed'
+            );
 
-        // базовая защита
+        const gearData =
+            await fetchStock(
+                process.env.GEAR_CHANNEL_ID,
+                'gear'
+            );
+
+        const eggsData =
+            await fetchStock(
+                process.env.EGGS_CHANNEL_ID,
+                'egg'
+            );
+
+
+        // ==========================================
+        // БАЗОВАЯ ЗАЩИТА
+        // ==========================================
+
         if (!seedsData || !gearData) {
-            console.log("⏳ Нет seeds или gear");
+
+            console.log(
+                "⏳ Нет seeds или gear"
+            );
+
             return;
         }
+
 
         const seeds = seedsData.items;
-        const gear  = gearData.items;
-        const eggs  = eggsData?.items || [];
+        const gear = gearData.items;
+        const eggs = eggsData?.items || [];
 
-        let showEggs = false;
 
-        const isAdminSeeds = seedsData.isAdmin;
-        const isAdminGear  = gearData.isAdmin;
+        const isAdminSeeds =
+            seedsData.isAdmin;
 
-        if (isAdminSeeds || isAdminGear) {
+        const isAdminGear =
+            gearData.isAdmin;
 
-        const currentAdminId = (isAdminSeeds ? seedsData.messageId : '') + (isAdminGear ? gearData.messageId : '');
 
-        if (currentAdminId === lastAdminMessageId) {
-            console.log("⏸️ ADMIN уже обработан");
+        // ==========================================
+        // ADMIN STOCK
+        // ==========================================
+
+        if (
+            isAdminSeeds ||
+            isAdminGear
+        ) {
+
+            const currentAdminId =
+                (
+                    isAdminSeeds
+                        ? seedsData.messageId
+                        : ''
+                ) +
+                (
+                    isAdminGear
+                        ? gearData.messageId
+                        : ''
+                );
+
+
+            if (
+                currentAdminId ===
+                lastAdminMessageId
+            ) {
+
+                console.log(
+                    "⏸️ ADMIN уже обработан"
+                );
+
+                return;
+            }
+
+
+            lastAdminMessageId =
+                currentAdminId;
+
+
+            console.log(
+                "🚨 ADMIN STOCK detected"
+            );
+
+
+            const embed = {
+
+                title:
+                    "🛠️ GROW A GARDEN | ADMIN STOCK",
+
+                color: 0xff0000,
+
+                fields: [],
+
+                footer: {
+                    text:
+                        `Admin update: ` +
+                        `${new Date().toLocaleTimeString('en-GB')} UTC`
+                },
+
+                timestamp:
+                    new Date().toISOString()
+            };
+
+
+            if (
+                isAdminSeeds &&
+                seeds.length > 0
+            ) {
+
+                embed.fields.push({
+
+                    name: "🌾 SEEDS",
+
+                    value: seeds
+                        .map(
+                            i =>
+                                `- ${EMOJIS[i.name] || ""} ` +
+                                `${i.name} — ${i.count}`
+                        )
+                        .join('\n'),
+
+                    inline: false
+                });
+            }
+
+
+            if (
+                isAdminGear &&
+                gear.length > 0
+            ) {
+
+                embed.fields.push({
+
+                    name: "⚙️ GEAR",
+
+                    value: gear
+                        .map(
+                            i =>
+                                `- ${EMOJIS[i.name] || ""} ` +
+                                `${i.name} — ${i.count}`
+                        )
+                        .join('\n'),
+
+                    inline: false
+                });
+            }
+
+
+            const pingText =
+                getPingText(
+
+                    isAdminSeeds
+                        ? seeds
+                        : [],
+
+                    isAdminGear
+                        ? gear
+                        : [],
+
+                    []
+                );
+
+
+            await sendToWebhooks({
+
+                content:
+                    pingText || null,
+
+                embeds: [embed]
+            });
+
+
+            console.log(
+                "🚨 ADMIN STOCK отправлен"
+            );
+
             return;
         }
 
-        lastAdminMessageId = currentAdminId;
 
-        console.log("🚨 ADMIN STOCK detected");
+        // ==========================================
+        // ПРОВЕРЯЕМ:
+        // ОБРАБОТАНЫ ЛИ УЖЕ SEEDS + GEAR
+        // ==========================================
 
-        const embed = {
-            title: "🛠️ GROW A GARDEN | ADMIN STOCK",
-            color: 0xff0000,
-            fields: [],
-            footer: {
-                text: `Admin update: ${new Date().toLocaleTimeString('en-GB')} UTC`
-            },
-            timestamp: new Date().toISOString()
-        };
+        const stockAlreadyProcessed =
 
-        if (isAdminSeeds && seeds.length > 0) {
-            embed.fields.push({
-                name: "🌾 SEEDS",
-                value: seeds
-                    .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                    .join('\n'),
-                inline: false
-            });
+            seedsData.messageId ===
+                lastProcessedMessageIds.seeds &&
+
+            gearData.messageId ===
+                lastProcessedMessageIds.gear;
+
+
+        if (stockAlreadyProcessed) {
+
+            console.log(
+                "⏸️ Уже обработанный stock"
+            );
+
+            return;
         }
 
-        if (isAdminGear && gear.length > 0) {
-            embed.fields.push({
-                name: "⚙️ GEAR",
-                value: gear
-                    .map(i => `- ${EMOJIS[i.name] || ""} ${i.name} — ${i.count}`)
-                    .join('\n'),
-                inline: false
-            });
+
+        // ==========================================
+        // ВРЕМЯ ТЕКУЩЕГО STOCK
+        // ==========================================
+
+        const stockTimestamp =
+            Math.max(
+                seedsData.createdTimestamp,
+                gearData.createdTimestamp
+            );
+
+
+        const stockDate =
+            new Date(stockTimestamp);
+
+
+        const stockMinute =
+            stockDate.getUTCMinutes();
+
+
+        /*
+            Яйца обновляются на:
+
+            XX:00
+            XX:30
+
+            Поэтому только эти stock
+            могут ожидать Egg Shop.
+        */
+
+        const isEggRestockMinute =
+            stockMinute === 0 ||
+            stockMinute === 30;
+
+
+        // ==========================================
+        // ПРОВЕРЯЕМ,
+        // НОВЫЕ ЛИ ЭТО ЯЙЦА И ОТНОСЯТСЯ ЛИ
+        // ОНИ К ТЕКУЩЕМУ STOCK
+        // ==========================================
+
+        let eggsBelongToThisStock = false;
+
+
+        if (
+            eggsData &&
+            eggsData.items.length > 0 &&
+            eggsData.createdTimestamp
+        ) {
+
+            const eggTimeDifference =
+                Math.abs(
+                    eggsData.createdTimestamp -
+                    stockTimestamp
+                );
+
+
+            /*
+                Яйца считаются частью этого stock,
+                если появились примерно рядом с ним.
+
+                90 секунд даёт небольшой запас:
+                яйцо может прийти чуть раньше
+                или немного позже Seeds/Gear.
+            */
+
+            eggsBelongToThisStock =
+                eggTimeDifference <=
+                90 * 1000;
         }
 
-        const pingText = getPingText(
-            isAdminSeeds ? seeds : [],
-            isAdminGear ? gear : [],
-            []
+
+        // ==========================================
+        // НА :00 И :30 ЖДЁМ ЯЙЦА ДО СЛЕДУЮЩЕЙ МИНУТЫ
+        // ==========================================
+
+        if (
+            isEggRestockMinute &&
+            !eggsBelongToThisStock
+        ) {
+
+            /*
+                Конец минуты stock.
+
+                Например:
+
+                stock = 08:30:04
+
+                deadline = 08:31:00
+            */
+
+            const waitDeadline =
+                Math.floor(
+                    stockTimestamp /
+                    60000
+                ) *
+                60000 +
+                60000;
+
+
+            if (
+                Date.now() <
+                waitDeadline
+            ) {
+
+                const secondsLeft =
+                    Math.ceil(
+                        (
+                            waitDeadline -
+                            Date.now()
+                        ) /
+                        1000
+                    );
+
+
+                console.log(
+                    `🥚 Ждём Egg Stock ещё примерно ${secondsLeft}s`
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "⌛ Egg Stock не появился вовремя — отправляем без яиц"
+            );
+        }
+
+
+        // ==========================================
+        // ПОКАЗЫВАЕМ ЯЙЦА ТОЛЬКО ЕСЛИ
+        // ОНИ ОТНОСЯТСЯ К ЭТОМУ STOCK
+        // ==========================================
+
+        const showEggs =
+            eggsBelongToThisStock;
+
+
+        if (showEggs) {
+
+            console.log(
+                "🥚 Egg Stock найден — добавляем к общему stock"
+            );
+        }
+
+
+        // ==========================================
+        // ОТПРАВЛЯЕМ
+        // ==========================================
+
+        console.log(
+            "📡 Обнаружен новый stock"
         );
 
-        await sendToWebhooks({
-            content: pingText || null,
-            embeds: [embed]
-        });
 
-        console.log("🚨 ADMIN STOCK отправлен");
+        await sendStockEmbed(
+            seeds,
+            gear,
+            eggs,
+            showEggs
+        );
 
-        return;
-        }
 
-        if (eggsData?.messageId !== lastEggsMessageIdForDisplay) {
-            showEggs = true;
-            lastEggsMessageIdForDisplay = eggsData?.messageId;
-            console.log("🥚 Яйца обновились");
-        }
+        // ==========================================
+        // ПОМЕЧАЕМ STOCK ОБРАБОТАННЫМ
+        // ТОЛЬКО ПОСЛЕ ОТПРАВКИ
+        // ==========================================
 
-        // 🧠 ПРОВЕРКА ПО MESSAGE ID
-        const isSameUpdate =
-            seedsData.messageId === lastProcessedMessageIds.seeds &&
-            gearData.messageId  === lastProcessedMessageIds.gear &&
-            (eggsData?.messageId || null) === lastProcessedMessageIds.eggs;
-
-        if (isSameUpdate) {
-            console.log("⏸️ Уже обработанный сток (по ID)");
-            return;
-        }
-
-        // 🧠 ОБНОВЛЯЕМ ID
         lastProcessedMessageIds = {
-            seeds: seedsData.messageId,
-            gear:  gearData.messageId,
-            eggs:  eggsData?.messageId || null
+
+            seeds:
+                seedsData.messageId,
+
+            gear:
+                gearData.messageId,
+
+            eggs:
+                showEggs
+                    ? eggsData.messageId
+                    : null
         };
 
-        console.log("📡 Обнаружен новый сток (по ID)");
 
-        await sendStockEmbed(seeds, gear, eggs, showEggs);
+        if (showEggs) {
+
+            lastEggsMessageIdForDisplay =
+                eggsData.messageId;
+        }
+
+
+        console.log(
+            "✅ Stock обработан"
+        );
+
 
     } catch (err) {
-        console.error("❌ Ошибка:", err.message);
+
+        console.error(
+            "❌ Ошибка:",
+            err.message
+        );
+
     } finally {
+
         isChecking = false;
     }
 }
+
 
 function startSmartScheduler() {
 
